@@ -8,11 +8,15 @@ repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://repo.onarandombox.com/content/groups/public/")
+    maven("https://jitpack.io")
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     compileOnly("org.mvplugins.multiverse.core:multiverse-core:5.6.1")
+    compileOnly("com.github.MilkBowl:VaultAPI:1.7") {
+        isTransitive = false
+    }
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 }
 
