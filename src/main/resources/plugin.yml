@@ -1,0 +1,8 @@
+name: thoth-mc-main
+version: '$version'
+
+main: gg.thoth.thothMcMain.ThothMcMain
+api-version: '1.21.11'
+load: POSTWORLD
+softdepend:
+  - Multiverse-Core
