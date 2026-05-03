@@ -13,6 +13,8 @@ import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.EquipmentSlot
+import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.PlayerInventory
 import java.util.ArrayDeque
 
 class BulkPlantListener : Listener {
@@ -50,29 +52,19 @@ class BulkPlantListener : Listener {
         event.setUseItemInHand(Event.Result.DENY)
 
         val consumeItems = player.gameMode != GameMode.CREATIVE
-        var remainingItems = item.amount
+        val itemConsumer = PlantItemConsumer(player.inventory, hand, item.type)
         val farmlandPositions = collectConnectedFarmland(clickedBlock)
 
         for (position in orderedPositions(farmlandPositions, clickedBlock)) {
-            if (consumeItems && remainingItems <= 0) {
-                return
-            }
-
             val farmlandBlock = clickedBlock.world.getBlockAt(position.x, clickedBlock.y, position.z)
             if (!canPlantAt(farmlandBlock, cropMaterial)) {
                 continue
             }
 
-            plantAt(farmlandBlock, cropMaterial)
-            if (consumeItems) {
-                remainingItems -= 1
-                if (remainingItems > 0) {
-                    item.amount = remainingItems
-                    player.inventory.setItem(hand, item)
-                } else {
-                    player.inventory.setItem(hand, null)
-                }
+            if (consumeItems && !itemConsumer.consumeOne()) {
+                return
             }
+            plantAt(farmlandBlock, cropMaterial)
         }
     }
 
@@ -187,6 +179,78 @@ class BulkPlantListener : Listener {
         val x: Int,
         val z: Int,
     )
+
+    private class PlantItemConsumer(
+        private val inventory: PlayerInventory,
+        preferredHand: EquipmentSlot,
+        private val itemType: Material,
+    ) {
+        private val slots = buildConsumptionOrder(inventory, preferredHand)
+
+        fun consumeOne(): Boolean {
+            for (slot in slots) {
+                val item = slot.get(inventory)
+                if (item?.type != itemType || item.amount <= 0) {
+                    continue
+                }
+
+                if (item.amount > 1) {
+                    item.amount -= 1
+                    slot.set(inventory, item)
+                } else {
+                    slot.set(inventory, null)
+                }
+                return true
+            }
+
+            return false
+        }
+
+        private fun buildConsumptionOrder(inventory: PlayerInventory, preferredHand: EquipmentSlot): List<InventorySlot> {
+            val preferredSlot = when (preferredHand) {
+                EquipmentSlot.OFF_HAND -> InventorySlot.Hand(EquipmentSlot.OFF_HAND)
+                else -> InventorySlot.Index(inventory.heldItemSlot)
+            }
+            val slots = mutableListOf(preferredSlot)
+
+            inventory.storageContents.indices
+                .map { InventorySlot.Index(it) }
+                .filterTo(slots) { it != preferredSlot }
+
+            val offHandSlot = InventorySlot.Hand(EquipmentSlot.OFF_HAND)
+            if (offHandSlot != preferredSlot) {
+                slots.add(offHandSlot)
+            }
+
+            return slots
+        }
+    }
+
+    private sealed class InventorySlot {
+        abstract fun get(inventory: PlayerInventory): ItemStack?
+
+        abstract fun set(inventory: PlayerInventory, item: ItemStack?)
+
+        data class Index(
+            val index: Int,
+        ) : InventorySlot() {
+            override fun get(inventory: PlayerInventory): ItemStack? = inventory.getItem(index)
+
+            override fun set(inventory: PlayerInventory, item: ItemStack?) {
+                inventory.setItem(index, item)
+            }
+        }
+
+        data class Hand(
+            val hand: EquipmentSlot,
+        ) : InventorySlot() {
+            override fun get(inventory: PlayerInventory): ItemStack? = inventory.getItem(hand)
+
+            override fun set(inventory: PlayerInventory, item: ItemStack?) {
+                inventory.setItem(hand, item)
+            }
+        }
+    }
 
     private companion object {
         val HORIZONTAL_FACES = listOf(
