@@ -1,5 +1,6 @@
 package gg.thoth.thothMcMain
 
+import gg.thoth.thothMcMain.farming.BulkPlantListener
 import gg.thoth.thothMcMain.lastlocation.LastLocationDestination
 import gg.thoth.thothMcMain.lastlocation.LastLocationStore
 import gg.thoth.thothMcMain.lastlocation.PlayerLocationListener
@@ -15,6 +16,7 @@ class ThothMcMain : JavaPlugin() {
         lastLocationStore.load()
 
         server.pluginManager.registerEvents(PlayerLocationListener(lastLocationStore), this)
+        server.pluginManager.registerEvents(BulkPlantListener(), this)
 
         MultiverseCoreApi.whenLoaded { api ->
             api.destinationsProvider.registerDestination(LastLocationDestination(lastLocationStore))
